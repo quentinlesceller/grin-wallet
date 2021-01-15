@@ -2324,7 +2324,7 @@ where
 	}
 }
 
-/// attempt to send slate synchronously with TOR
+/// attempt to send slate synchronously, starting with TOR and downgrading to HTTP
 pub fn try_slatepack_sync_workflow(
 	slate: &Slate,
 	dest: &str,
@@ -2355,7 +2355,7 @@ pub fn try_slatepack_sync_workflow(
 		}
 	};
 
-	// Try parsing Slatepack address
+	// First, try TOR
 	match SlatepackAddress::try_from(dest) {
 		Ok(address) => {
 			let tor_addr = OnionV3Address::try_from(&address).unwrap();
@@ -2392,18 +2392,34 @@ pub fn try_slatepack_sync_workflow(
 					Ok(_) => return Ok(Some(ret_slate)),
 					Err(e) => {
 						debug!("Unable to send via TOR: {}", e);
-						warn!("Unable to send transaction via TOR");
+						warn!("Unable to send transaction via TOR. Attempting alternate methods.");
 					}
 				}
 			}
 		}
 		Err(e) => {
 			debug!("Send (TOR): Destination is not SlatepackAddress {:?}", e);
-			warn!("Destination is not a valid Slatepack address. Will output Slatepack.")
 		}
 	}
 
-	Ok(None)
+	// Try Fallback to HTTP for deprecation period
+	match HttpSlateSender::new(&dest) {
+		Ok(sender) => {
+			println!("Attempting to send transaction via HTTP (deprecated)");
+			match send_sync(sender, "HTTP") {
+				Ok(_) => return Ok(Some(ret_slate)),
+				Err(e) => {
+					debug!("Unable to send via HTTP: {}", e);
+					warn!("Unable to send transaction via HTTP. Will output Slatepack.");
+					return Ok(None);
+				}
+			}
+		}
+		Err(e) => {
+			debug!("Send (HTTP): Cannot create HTTP Slate sender {:?}", e);
+			return Ok(None);
+		}
+	}
 }
 
 #[doc(hidden)]

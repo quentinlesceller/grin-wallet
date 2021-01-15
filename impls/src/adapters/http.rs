@@ -39,7 +39,7 @@ pub struct HttpSlateSender {
 
 impl HttpSlateSender {
 	/// Create, return Err if scheme is not "http"
-	fn new(base_url: &str) -> Result<HttpSlateSender, SchemeNotHttp> {
+	pub fn new(base_url: &str) -> Result<HttpSlateSender, SchemeNotHttp> {
 		if !base_url.starts_with("http") && !base_url.starts_with("https") {
 			Err(SchemeNotHttp)
 		} else {
